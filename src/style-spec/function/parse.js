@@ -11,11 +11,14 @@ const {
 const expressions = require('./expressions');
 
 /*::
- import type { PrimitiveType, TypeName, VariantType, VectorType, ArrayType, AnyArrayType, NArgs, LambdaType, Type } from './types.js';
-
- import type { TypeError, TypedLambdaExpression, TypedLiteralExpression, TypedExpression } from './type_check.js';
+ import type { TypeError, TypedExpression } from './type_check.js';
 
  import type { ExpressionName } from './expressions.js';
+
+ export type ParseError = {|
+     error: string,
+     key: string
+ |}
 */
 
 module.exports = parseExpression;
@@ -27,7 +30,7 @@ module.exports = parseExpression;
  *
  * @private
  */
-function parseExpression(expr: any, path: Array<number> = []) /*: TypedExpression */ {
+function parseExpression(expr: any, path: Array<number> = []) /*: TypedExpression | ParseError */ {
     const key = path.join('.');
     if (typeof expr === 'undefined') return {
         literal: true,
@@ -58,20 +61,35 @@ function parseExpression(expr: any, path: Array<number> = []) /*: TypedExpressio
     };
 
     if (!Array.isArray(expr)) {
-        throw new Error(`${key}: expected an array, but found ${typeof expr} instead.`);
+        return {
+            key,
+            error: `Expected an array, but found ${typeof expr} instead.`
+        };
     }
 
     const op = expr[0];
     const definition = expressions[op];
     if (!definition) {
-        throw new Error(`${key}: unknown function ${op}`);
+        return {
+            key,
+            error: `Unknown function ${op}`
+        };
+    }
+
+    const args = [];
+    for (const arg of expr.slice(1)) {
+        const parsedArg = parseExpression(arg, path.concat(1 + args.length));
+        if (parsedArg.error) {
+            return parsedArg;
+        }
+        args.push(parsedArg);
     }
 
     return {
         literal: false,
         name: op,
         type: definition.type,
-        arguments: expr.slice(1).map((arg, i) => parseExpression(arg, path.concat(i + 1))),
+        arguments: args,
         key
     };
 }

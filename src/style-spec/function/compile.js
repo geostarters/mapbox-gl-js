@@ -64,24 +64,35 @@ const evaluationContext = require('./evaluation_context');
  */
 function compileExpression(expr: any) {
     const parsed = parseExpression(expr);
-    const compiled = compile(null, parsed);
-    if (compiled.result === 'success') {
-        try {
-            const fn = new Function('mapProperties', 'feature', `
-    mapProperties = mapProperties || {};
-    feature = feature || {};
-    var props = feature.properties || {};
-    return (${compiled.js})
-    `);
-            compiled.function = fn.bind(evaluationContext());
-        } catch (e) {
-            // TODO: for debugging purposes; remove this.
-            console.log(compiled.js);
-            throw e;
-        }
+    if (parsed.error) {
+        return {
+            result: 'error',
+            errors: [parsed]
+        };
     }
 
-    return compiled;
+    if (parsed.type) {
+        const compiled = compile(null, parsed);
+        if (compiled.result === 'success') {
+            try {
+                const fn = new Function('mapProperties', 'feature', `
+        mapProperties = mapProperties || {};
+        feature = feature || {};
+        var props = feature.properties || {};
+        return (${compiled.js})
+        `);
+                compiled.function = fn.bind(evaluationContext());
+            } catch (e) {
+                // TODO: for debugging purposes; remove this.
+                console.log(compiled.js);
+                throw e;
+            }
+        }
+
+        return compiled;
+    }
+
+    assert(false, 'parseExpression always returns ParseError | TypedExpression');
 }
 
 function compile(expected: Type | null, e: TypedExpression) /*: CompiledExpression | CompileErrors */ {
