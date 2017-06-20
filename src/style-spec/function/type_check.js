@@ -16,7 +16,8 @@
      name: ExpressionName,
      type: LambdaType,
      arguments: Array<TypedExpression>,
-     key: string
+     key: string,
+     matchInputs?: Array<Array<mixed>>
  |}
 
  export type TypedLiteralExpression = {|
@@ -116,13 +117,19 @@ function typeCheckExpression(expected: Type, e: TypedExpression) /*: TypedExpres
 
         if (errors.length > 0) return { errors };
 
-        return {
+        const result: TypedLambdaExpression = {
             literal: false,
             name: e.name,
             type: lambda(expectedResult, ...resolvedArgTypes),
             arguments: checkedArgs,
             key: e.key
         };
+
+        if (e.matchInputs) {
+            result.matchInputs = e.matchInputs;
+        }
+
+        return result;
     }
 
 }

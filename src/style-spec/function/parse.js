@@ -1,4 +1,5 @@
 'use strict';
+
 // @flow
 
 const {
@@ -83,6 +84,50 @@ function parseExpression(expr: mixed, path: Array<number> = []) /*: TypedExpress
         };
     }
 
+    const inputExpression = parseExpression(expr[1], path.concat(1));
+    if (inputExpression.error) return inputExpression;
+
+    // special case parsing for `match`
+    if (op === 'match') {
+        const inputValues = [];
+        const outputExpressions = [];
+        if (expr.length < 3) return {
+            key,
+            error: `Expected at least 2 arguments, but found only ${expr.length - 1}.`
+        };
+
+        for (let i = 2; i < expr.length - 2; i += 2) {
+            if (
+                !isPrimitive(expr[i]) &&
+                (!Array.isArray(expr[i]) || expr[i].some(x => !isPrimitive(x)))
+            ) {
+                return {
+                    key: `${key}.${i}`,
+                    error: 'Match inputs must be literal primitive values or arrays of literal primitive values.'
+                };
+            }
+            inputValues.push(Array.isArray(expr[i]) ? expr[i] : [expr[i]]);
+            const output = parseExpression(expr[i + 1], path.concat(i));
+            if (output.error) return output;
+            outputExpressions.push(output);
+        }
+        const otherwise = parseExpression(expr[expr.length - 1], path.concat(expr.length - 1));
+        if (otherwise.error) return otherwise;
+        outputExpressions.push(otherwise);
+
+        // TODO: matchInputs should be Array<Array<TypedLiteralExpression>> so
+        // that they can be checked in typecheck()
+
+        return {
+            literal: false,
+            name: 'match',
+            type: definition.type,
+            matchInputs: inputValues,
+            arguments: [inputExpression].concat(outputExpressions),
+            key
+        };
+    }
+
     const args = [];
     for (const arg of expr.slice(1)) {
         const parsedArg = parseExpression(arg, path.concat(1 + args.length));
@@ -101,3 +146,7 @@ function parseExpression(expr: mixed, path: Array<number> = []) /*: TypedExpress
     };
 }
 
+function isPrimitive(x) {
+    const type = typeof x;
+    return type === 'number' || type === 'string' || type === 'boolean';
+}

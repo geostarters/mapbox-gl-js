@@ -211,6 +211,41 @@ const expressions: { [string]: Definition } = {
             return { js: result.join(':') };
         }
     },
+    'match': {
+        name: 'match',
+        // note that, since they're pulled out during parsing, the input
+        // values of type T aren't reflected in the signature here
+        type: lambda(typename('T'), typename('U'), nargs(typename('T'))),
+        compile: (e, args) => {
+            if (!e.matchInputs) { throw new Error('Missing match input values'); }
+            const inputs = e.matchInputs;
+            if (args.length !== inputs.length + 2) {
+                return {
+                    errors: [`Expected ${2 * inputs.length + 2} arguments, but found ${inputs.length + args.length} instead.`]
+                };
+            }
+
+            const input = args[0].js;
+            const outputs = args.slice(1).map(a => `() => ${a.js}`);
+            const inputMap = {};
+            for (let i = 0; i < inputs.length; i++) {
+                for (const value of inputs[i]) {
+                    inputMap[String(value)] = i;
+                }
+            }
+
+            return {js: `
+            (function () {
+                var outputs = [${outputs.join(', ')}];
+                var inputMap = ${JSON.stringify(inputMap)};
+                var input = ${input};
+                var outputIndex = inputMap[${input}];
+                return typeof outputIndex === 'number' ? outputs[outputIndex]() :
+                    outputs[${outputs.length - 1}]();
+            }.bind(this))()`};
+        }
+    },
+
     'curve': {
         name: 'curve',
         type: lambda(typename('T'), InterpolationType, NumberType, nargs(NumberType, typename('T'))),
