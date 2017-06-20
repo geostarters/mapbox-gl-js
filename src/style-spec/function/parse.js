@@ -30,7 +30,7 @@ module.exports = parseExpression;
  *
  * @private
  */
-function parseExpression(expr: any, path: Array<number> = []) /*: TypedExpression | ParseError */ {
+function parseExpression(expr: mixed, path: Array<number> = []) /*: TypedExpression | ParseError */ {
     const key = path.join('.');
     if (typeof expr === 'undefined') return {
         literal: true,
@@ -68,6 +68,13 @@ function parseExpression(expr: any, path: Array<number> = []) /*: TypedExpressio
     }
 
     const op = expr[0];
+    if (typeof op !== 'string') {
+        return {
+            key: `${key}.0`,
+            error: `Expression name must be a string, but found ${typeof op} instead.`
+        };
+    }
+
     const definition = expressions[op];
     if (!definition) {
         return {

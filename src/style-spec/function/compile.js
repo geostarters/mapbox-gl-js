@@ -24,7 +24,7 @@ const evaluationContext = require('./evaluation_context');
      isFeatureConstant: boolean,
      isZoomConstant: boolean,
      expression: TypedExpression,
-     function?: any
+     function?: Function
  |}
 
 
@@ -62,7 +62,7 @@ const evaluationContext = require('./evaluation_context');
  *
  * @private
  */
-function compileExpression(expr: any) {
+function compileExpression(expr: mixed) {
     const parsed = parseExpression(expr);
     if (parsed.error) {
         return {
