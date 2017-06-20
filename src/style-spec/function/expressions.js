@@ -139,8 +139,8 @@ const expressions: { [string]: Definition } = {
         type: lambda(NumberType),
         compile: () => ({js: 'mapProperties.zoom', isZoomConstant: false})
     },
-    '+': defineBinaryMathOp('+'),
-    '*': defineBinaryMathOp('*'),
+    '+': defineBinaryMathOp('+', true),
+    '*': defineBinaryMathOp('*', true),
     '-': defineBinaryMathOp('-'),
     '/': defineBinaryMathOp('/'),
     '%': defineBinaryMathOp('%'),
@@ -325,15 +325,12 @@ function defineBinaryMathOp(name, isAssociative) {
     };
 }
 
-function defineComparisonOp(name, isAssociative) {
+function defineComparisonOp(name) {
     const op = name === '==' ? '===' :
-        name === '!=' ? '!==' :
-        name;
-    const args = isAssociative ? [nargs(typename('T'))] : [typename('T'), typename('T')];
-
+        name === '!=' ? '!==' : name;
     return {
         name: name,
-        type: lambda(BooleanType, ...args),
+        type: lambda(BooleanType, typename('T'), typename('T')),
         compile: (_, args) => ({ js: `${args[0].js} ${op} ${args[1].js}` })
     };
 }

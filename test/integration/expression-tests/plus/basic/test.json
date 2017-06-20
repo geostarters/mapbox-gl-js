@@ -1,8 +1,10 @@
 {
   "expression": [
     "+",
+    1,
     2,
-    3
+    3,
+    4
   ],
   "evaluate": [
     [
@@ -18,7 +20,7 @@
       "type": "number"
     },
     "evaluateResults": [
-      5
+      10
     ]
   }
 }
