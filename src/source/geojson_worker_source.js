@@ -14,15 +14,17 @@ import type {
     WorkerTileCallback,
 } from '../source/worker_source';
 
-import type {Actor} from '../util/actor';
+import type Actor from '../util/actor';
 import type StyleLayerIndex from '../style/style_layer_index';
 
 import type {LoadVectorDataCallback} from './vector_tile_worker_source';
+import type {RequestParameters} from '../util/ajax';
+import type { Callback } from '../types/callback';
 
 export type GeoJSON = Object;
 
 export type LoadGeoJSONParameters = {
-    url?: string,
+    request?: RequestParameters,
     data?: string,
     source: string,
     superclusterOptions?: Object,
@@ -36,13 +38,13 @@ export interface GeoJSONIndex {
 
 function loadGeoJSONTile(params: WorkerTileParameters, callback: LoadVectorDataCallback) {
     const source = params.source,
-        coord = params.coord;
+        canonical = params.tileID.canonical;
 
     if (!this._geoJSONIndexes[source]) {
         return callback(null, null);  // we couldn't load the file
     }
 
-    const geoJSONTile = this._geoJSONIndexes[source].getTile(Math.min(coord.z, params.maxZoom), coord.x, coord.y);
+    const geoJSONTile = this._geoJSONIndexes[source].getTile(canonical.z, canonical.x, canonical.y);
     if (!geoJSONTile) {
         return callback(null, null); // nothing in the given tile
     }
@@ -164,8 +166,8 @@ class GeoJSONWorkerSource extends VectorTileWorkerSource {
         // origin or absolute path.
         // ie: /foo/bar.json or http://example.com/bar.json
         // but not ../foo/bar.json
-        if (params.url) {
-            ajax.getJSON(params.url, callback);
+        if (params.request) {
+            ajax.getJSON(params.request, callback);
         } else if (typeof params.data === 'string') {
             try {
                 return callback(null, JSON.parse(params.data));
@@ -177,10 +179,11 @@ class GeoJSONWorkerSource extends VectorTileWorkerSource {
         }
     }
 
-    removeSource(params: {source: string}) {
+    removeSource(params: {source: string}, callback: Callback<mixed>) {
         if (this._geoJSONIndexes[params.source]) {
             delete this._geoJSONIndexes[params.source];
         }
+        callback();
     }
 }
 

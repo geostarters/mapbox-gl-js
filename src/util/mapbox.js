@@ -17,6 +17,10 @@ function makeAPIURL(urlObject: UrlObject, accessToken: string | null | void): st
     urlObject.protocol = apiUrlObject.protocol;
     urlObject.authority = apiUrlObject.authority;
 
+    if (apiUrlObject.path !== '/') {
+        urlObject.path = `${apiUrlObject.path}${urlObject.path}`;
+    }
+
     if (!config.REQUIRE_ACCESS_TOKEN) return formatUrl(urlObject);
 
     accessToken = accessToken || config.ACCESS_TOKEN;

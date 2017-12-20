@@ -43,10 +43,15 @@ module.exports = function validateObject(options) {
             styleSpec: styleSpec,
             object: object,
             objectKey: objectKey
-        }));
+        }, object));
     }
 
     for (const elementSpecKey in elementSpecs) {
+        // Don't check `required` when there's a custom validator for that property.
+        if (elementValidators[elementSpecKey]) {
+            continue;
+        }
+
         if (elementSpecs[elementSpecKey].required && elementSpecs[elementSpecKey]['default'] === undefined && object[elementSpecKey] === undefined) {
             errors.push(new ValidationError(key, object, 'missing required property "%s"', elementSpecKey));
         }

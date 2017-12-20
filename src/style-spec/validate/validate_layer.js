@@ -5,6 +5,7 @@ const validateObject = require('./validate_object');
 const validateFilter = require('./validate_filter');
 const validatePaintProperty = require('./validate_paint_property');
 const validateLayoutProperty = require('./validate_layout_property');
+const validateSpec = require('./validate');
 const extend = require('../util/extend');
 
 module.exports = function validateLayer(options) {
@@ -65,6 +66,8 @@ module.exports = function validateLayer(options) {
                 errors.push(new ValidationError(key, layer.source, 'layer "%s" requires a vector source', layer.id));
             } else if (sourceType === 'vector' && !layer['source-layer']) {
                 errors.push(new ValidationError(key, layer, 'layer "%s" must specify a "source-layer"', layer.id));
+            } else if (sourceType === 'raster-dem' && type !== 'hillshade') {
+                errors.push(new ValidationError(key, layer.source, 'raster-dem source can only be used with layer type \'hillshade\'.', layer.id));
             }
         }
     }
@@ -78,6 +81,19 @@ module.exports = function validateLayer(options) {
         objectElementValidators: {
             '*': function() {
                 return [];
+            },
+            // We don't want to enforce the spec's `"requires": true` for backward compatibility with refs;
+            // the actual requirement is validated above. See https://github.com/mapbox/mapbox-gl-js/issues/5772.
+            type: function() {
+                return validateSpec({
+                    key: `${key}.type`,
+                    value: layer.type,
+                    valueSpec: styleSpec.layer.type,
+                    style: options.style,
+                    styleSpec: options.styleSpec,
+                    object: layer,
+                    objectKey: 'type'
+                });
             },
             filter: validateFilter,
             layout: function(options) {

@@ -22,11 +22,12 @@ module.exports = function validateSource(options) {
     case 'vector':
     case 'vectoroffline':
     case 'raster':
+    case 'raster-dem':
     case 'rasteroffline':
         errors = errors.concat(validateObject({
             key: key,
             value: value,
-            valueSpec: styleSpec.source_tile,
+            valueSpec: styleSpec[`source_${type.replace('-', '_')}`],
             style: options.style,
             styleSpec: styleSpec
         }));

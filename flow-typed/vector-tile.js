@@ -1,3 +1,5 @@
+import type Pbf from 'pbf';
+
 declare interface VectorTile {
     layers: {[string]: VectorTileLayer};
 }
@@ -16,11 +18,10 @@ declare interface VectorTileFeature {
     properties: {[string]: string | number | boolean};
 
     loadGeometry(): Array<Array<Point>>;
-    bbox(): [number, number, number, number];
     toGeoJSON(x: number, y: number, z: number): GeoJSONFeature;
 }
 
-declare module "vector-tile" {
+declare module "@mapbox/vector-tile" {
     declare class VectorTileImpl {
         constructor(pbf: Pbf): VectorTile;
     }
