@@ -7,7 +7,6 @@ const symbolSize = require('../symbol/symbol_size');
 const mat4 = require('@mapbox/gl-matrix').mat4;
 const identityMat4 = mat4.identity(new Float32Array(16));
 const symbolLayoutProperties = require('../style/style_layer/symbol_style_layer_properties').layout;
-const browser = require('../util/browser');
 const StencilMode = require('../gl/stencil_mode');
 const DepthMode = require('../gl/depth_mode');
 
@@ -25,7 +24,7 @@ function drawSymbols(painter: Painter, sourceCache: SourceCache, layer: SymbolSt
     const context = painter.context;
 
     // Disable the stencil test so that labels aren't clipped to tile boundaries.
-    context.setStencilMode(StencilMode.disabled());
+    context.setStencilMode(StencilMode.disabled);
     context.setColorMode(painter.colorModeForRenderPass());
 
     if (layer.paint.get('icon-opacity').constantOr(1) !== 0) {
@@ -70,7 +69,7 @@ function drawLayerSymbols(painter, sourceCache, layer, coords, isText, translate
 
     const depthOn = pitchWithMap;
 
-    context.setDepthMode(depthOn ? painter.depthModeForSublayer(0, DepthMode.ReadOnly) : DepthMode.disabled());
+    context.setDepthMode(depthOn ? painter.depthModeForSublayer(0, DepthMode.ReadOnly) : DepthMode.disabled);
 
     let program;
 
@@ -122,7 +121,7 @@ function drawLayerSymbols(painter, sourceCache, layer, coords, isText, translate
             gl.uniformMatrix4fv(program.uniforms.u_label_plane_matrix, false, labelPlaneMatrix);
         }
 
-        gl.uniform1f(program.uniforms.u_fade_change, painter.options.fadeDuration ? ((browser.now() - bucket.fadeStartTime) / painter.options.fadeDuration) : 1);
+        gl.uniform1f(program.uniforms.u_fade_change, painter.options.fadeDuration ? painter.symbolFadeChange : 1);
 
         drawTileSymbols(program, programConfiguration, painter, layer, tile, buffers, isText, isSDF, pitchWithMap);
     }

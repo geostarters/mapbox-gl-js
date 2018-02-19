@@ -87,6 +87,7 @@ Grid.deserialize = function deserializeGrid(serialized: ArrayBuffer): Grid {
 register('Grid', Grid);
 
 register('Color', Color);
+register('Error', Error);
 
 register('StylePropertyFunction', StylePropertyFunction);
 register('StyleExpression', StyleExpression, {omit: ['_evaluator']});
@@ -99,7 +100,7 @@ register('ZoomDependentExpression', ZoomDependentExpression);
 register('ZoomConstantExpression', ZoomConstantExpression);
 register('CompoundExpression', CompoundExpression, {omit: ['_evaluate']});
 for (const name in expressions) {
-    if (expressions[name]._classRegistryKey) continue;
+    if ((expressions[name]: any)._classRegistryKey) continue;
     register(`Expression_${name}`, expressions[name]);
 }
 

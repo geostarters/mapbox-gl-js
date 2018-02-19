@@ -16,7 +16,7 @@ import type Tile from './tile';
 import type {Callback} from '../types/callback';
 
 class RasterTileSource extends Evented implements Source {
-    type: 'raster' | 'raster-dem';
+    type: 'raster' | 'raster-dem' | 'raster-offline';
     id: string;
     minzoom: number;
     maxzoom: number;

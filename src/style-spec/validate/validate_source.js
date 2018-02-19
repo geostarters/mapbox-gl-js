@@ -1,4 +1,4 @@
-'use strict';
+
 
 const ValidationError = require('../error/validation_error');
 const unbundle = require('../util/unbundle_jsonlint');
@@ -20,10 +20,10 @@ module.exports = function validateSource(options) {
 
     switch (type) {
     case 'vector':
-    case 'vectoroffline':
+    case 'vector-offline':
     case 'raster':
     case 'raster-dem':
-    case 'rasteroffline':
+    case 'raster-offline':
         errors = errors.concat(validateObject({
             key: key,
             value: value,
@@ -34,7 +34,7 @@ module.exports = function validateSource(options) {
         if ('url' in value) {
             for (const prop in value) {
                 if (['type', 'url', 'tileSize'].indexOf(prop) < 0) {
-                    errors.push(new ValidationError(`${key}.${prop}`, value[prop], 'a source with a "url" property may not include a "%s" property', prop));
+                    errors.push(new ValidationError(`${key}.${prop}`, value[prop], `a source with a "url" property may not include a "${prop}" property`));
                 }
             }
         }
@@ -80,7 +80,7 @@ module.exports = function validateSource(options) {
         return validateEnum({
             key: `${key}.type`,
             value: value.type,
-            valueSpec: {values: ['vector', 'vectoroffline', 'raster', 'rasteroffline', 'geojson', 'video', 'image', 'canvas']},
+            valueSpec: {values: ['vector', 'vector-offline', 'raster', 'raster-dem', 'raster-offline', 'geojson', 'video', 'image', 'canvas']},
             style: style,
             styleSpec: styleSpec
         });

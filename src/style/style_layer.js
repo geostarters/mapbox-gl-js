@@ -216,7 +216,6 @@ const subclasses = {
     'symbol': require('./style_layer/symbol_style_layer'),
     'background': require('./style_layer/background_style_layer'),
     'raster': require('./style_layer/raster_style_layer')
-    'normal': StyleLayer
 };
 
 StyleLayer.create = function(layer: LayerSpecification) {

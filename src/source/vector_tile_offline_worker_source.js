@@ -1,18 +1,29 @@
-'use strict';
-/*
-const ajax = require('../util/ajax');
-const vt = require('vector-tile');
-const Protobuf = require('pbf');
-const WorkerTile = require('./worker_tile');
+// @flow
+
 const util = require('../util/util');
-*/
-const util = require('../util/util');
-const vt = require('vector-tile');
+const vt = require('@mapbox/vector-tile');
 const Protobuf = require('pbf');
 const VectorTileWorkerSource = require('./vector_tile_worker_source');
 const WorkerTile = require('./worker_tile');
 const Pako = require('pako');
 const Abab = require('abab');
+const perf = require('../util/performance');
+
+import type {
+    WorkerTileParameters,
+    WorkerTileCallback,
+    TileParameters
+} from '../source/worker_source';
+
+import type {
+    LoadVectorData,
+    LoadVectorDataCallback
+} from '../source/vector_tile_worker_source';
+
+import type Actor from '../util/actor';
+import type StyleLayerIndex from '../style/style_layer_index';
+import type {Callback} from '../types/callback';
+
 
 /**
  * The {@link WorkerSource} implementation that supports {@link VectorTileSource}.
@@ -27,14 +38,9 @@ class VectorTileOfflineWorkerSource extends VectorTileWorkerSource {
     /**
      * @param {Function} [loadVectorData] Optional method for custom loading of a VectorTile object based on parameters passed from the main-thread Source.  See {@link VectorTileWorkerSource#loadTile}.  The default implementation simply loads the pbf at `params.url`.
      */
-    constructor(actor, layerIndex, loadVectorData) {
-        this.actor = actor;
-        this.layerIndex = layerIndex;
-
-        if (loadVectorData) { this.loadVectorData = loadVectorData; }
-
-        this.loading = {};
-        this.loaded = {};
+    constructor(actor: Actor, layerIndex: StyleLayerIndex, loadVectorData: ?LoadVectorData) {
+        super(actor, layerIndex, loadVectorData);
+        this.loadVectorData = this.loadVectorDataOffline;
     }
 
     /**
@@ -43,6 +49,7 @@ class VectorTileOfflineWorkerSource extends VectorTileWorkerSource {
      * @param {Object} params
      * @param {string} params.source The id of the source for which we're loading this tile.
      * @param {string} params.uid The UID for this tile.
+     * @param {Object} params.tileID
      * @param {TileCoord} params.coord
      * @param {number} params.zoom
      * @param {number} params.overscaling
@@ -52,39 +59,44 @@ class VectorTileOfflineWorkerSource extends VectorTileWorkerSource {
      * @param {number} params.cameraToTileDistance
      * @param {boolean} params.showCollisionBoxes
      */
-    loadTile(params, callback) {
-        const source = params.source,
-            uid = params.uid;
+    loadTile(params: WorkerTileParameters, callback: WorkerTileCallback) {
+        const uid = params.uid;
 
-        if (!this.loading[source])
-            this.loading[source] = {};
+        if (!this.loading)
+            this.loading = {};
 
-        const workerTile = this.loading[source][uid] = new WorkerTile(params);
-        workerTile.abort = this.loadVectorData(params, done.bind(this));
+        const workerTile = this.loading[uid] = new WorkerTile(params);
+        workerTile.abort = this.loadVectorData(params, (err, response) => {
+            delete this.loading[uid];
 
-        function done(err, vectorTile) {
-            delete this.loading[source][uid];
+            if (err || !response) {
+                return callback(err);
+            }
 
-            if (err) return callback(err);
-            if (!vectorTile) return callback(null, null);
+            const rawTileData = response.rawData;
+            const cacheControl = {};
+            if (response.expires) cacheControl.expires = response.expires;
+            if (response.cacheControl) cacheControl.cacheControl = response.cacheControl;
+            const resourceTiming = {};
+            if (params.request && params.request.collectResourceTiming) {
+                const resourceTimingData = perf.getEntriesByName(params.request.url);
+                // it's necessary to eval the result of getEntriesByName() here via parse/stringify
+                // late evaluation in the main thread causes TypeError: illegal invocation
+                if (resourceTimingData)
+                    resourceTiming.resourceTiming = JSON.parse(JSON.stringify(resourceTimingData));
+            }
 
-            workerTile.vectorTile = vectorTile;
-            workerTile.parse(vectorTile, this.layerIndex, this.actor, (err, result, transferrables) => {
-                if (err) return callback(err);
+            workerTile.vectorTile = response.vectorTile;
+            workerTile.parse(response.vectorTile, this.layerIndex, this.actor, (err, result) => {
+                if (err || !result) return callback(err);
 
-                const cacheControl = {};
-                if (vectorTile.expires) cacheControl.expires = vectorTile.expires;
-                if (vectorTile.cacheControl) cacheControl.cacheControl = vectorTile.cacheControl;
-
-                // Not transferring rawTileData because the worker needs to retain its copy.
-                callback(null,
-                    util.extend({rawTileData: vectorTile.rawData}, result, cacheControl),
-                    transferrables);
+                // Transferring a copy of rawTileData because the worker needs to retain its copy.
+                callback(null, util.extend({rawTileData: rawTileData.slice(0)}, result, cacheControl, resourceTiming));
             });
 
-            this.loaded[source] = this.loaded[source] || {};
-            this.loaded[source][uid] = workerTile;
-        }
+            this.loaded = this.loaded || {};
+            this.loaded[uid] = workerTile;
+        });
     }
 
     /**
@@ -94,8 +106,8 @@ class VectorTileOfflineWorkerSource extends VectorTileWorkerSource {
      * @param {string} params.source The id of the source for which we're loading this tile.
      * @param {string} params.uid The UID for this tile.
      */
-    reloadTile(params, callback) {
-        const loaded = this.loaded[params.source],
+    reloadTile(params: WorkerTileParameters, callback: WorkerTileCallback) {
+        const loaded = this.loaded,
             uid = params.uid,
             vtSource = this;
         if (loaded && loaded[uid]) {
@@ -127,8 +139,8 @@ class VectorTileOfflineWorkerSource extends VectorTileWorkerSource {
      * @param {string} params.source The id of the source for which we're loading this tile.
      * @param {string} params.uid The UID for this tile.
      */
-    abortTile(params) {
-        const loading = this.loading[params.source],
+    abortTile(params: TileParameters) {
+        const loading = this.loading,
             uid = params.uid;
         if (loading && loading[uid] && loading[uid].abort) {
             loading[uid].abort();
@@ -143,8 +155,8 @@ class VectorTileOfflineWorkerSource extends VectorTileWorkerSource {
      * @param {string} params.source The id of the source for which we're loading this tile.
      * @param {string} params.uid The UID for this tile.
      */
-    removeTile(params) {
-        const loaded = this.loaded[params.source],
+    removeTile(params: TileParameters) {
+        const loaded = this.loaded,
             uid = params.uid;
         if (loaded && loaded[uid]) {
             delete loaded[uid];
@@ -175,52 +187,45 @@ class VectorTileOfflineWorkerSource extends VectorTileWorkerSource {
      * @param {string} params.url The URL of the tile PBF to load.
      * @param {LoadVectorDataCallback} callback
      */
-    loadVectorData(params, callback) {
+    loadVectorDataOffline(params: WorkerTileParameters, callback: LoadVectorDataCallback) {
 
         //console.debug("loadVectorData");
 
         this.getArrayBufferFromBlob(params.blob, done.bind(this));
-        return function abort () { xhr.abort(); };//TODO
+        return () => {};
         function done(err, response) {
-            if (err) { return callback(err); }
-            const vectorTile = new vt.VectorTile(new Protobuf(response.data));
-            vectorTile.rawData = response.data;
-            vectorTile.cacheControl = response.cacheControl;
-            vectorTile.expires = response.expires;
-            callback(err, vectorTile);
+            if (err) {
+                return callback(err);
+            } else if (response) {
+                callback(null, {
+                    vectorTile: new vt.VectorTile(new Protobuf(response.data)),
+                    rawData: response.data,
+                    cacheControl: response.cacheControl,
+                    expires: response.expires
+                });
+            }
         }
 
-        /*
-        const xhr = ajax.getArrayBuffer(params.url, done.bind(this));
-        return function abort () { xhr.abort(); };
-        function done(err, response) {
-            if (err) { return callback(err); }
-            const vectorTile = new vt.VectorTile(new Protobuf(response.data));
-            vectorTile.rawData = response.data;
-            vectorTile.cacheControl = response.cacheControl;
-            vectorTile.expires = response.expires;
-            callback(err, vectorTile);
-        }*/
     }
 
-    getArrayBufferFromBlob(blob, callback){
+    getArrayBufferFromBlob(blob: ?Blob, callback: Callback<Object>) {
 
-        if (typeof blob === 'undefined'){
+        if (typeof blob === 'undefined') {
             callback(undefined,
                 {
                     data: undefined,
                     cacheControl: null,
                     expires: null
                 });
-        }else{
+        } else if (blob) {
 
-            const l = Abab.atob(blob); 
-            const a = l.length; 
+            const l = Abab.atob(blob);
+            const a = l.length;
             const s = new Uint8Array(a);
-            
-             for (let d = 0; a > d; ++d){
-                s[d] = l.charCodeAt(d); 
-             };
+
+            for (let d = 0; a > d; ++d) {
+                s[d] = l.charCodeAt(d);
+            }
             const n = Pako.inflate(s);
 
             callback(undefined,
@@ -232,23 +237,6 @@ class VectorTileOfflineWorkerSource extends VectorTileWorkerSource {
         }
     }
 
-    redoPlacement(params, callback) {
-        const loaded = this.loaded[params.source],
-            loading = this.loading[params.source],
-            uid = params.uid;
-
-        if (loaded && loaded[uid]) {
-            const workerTile = loaded[uid];
-            const result = workerTile.redoPlacement(params.angle, params.pitch, params.cameraToCenterDistance, params.cameraToTileDistance, params.showCollisionBoxes);
-
-            if (result.result) {
-                callback(null, result.result, result.transferables);
-            }
-
-        } else if (loading && loading[uid]) {
-            loading[uid].angle = params.angle;
-        }
-    }
 }
 
 module.exports = VectorTileOfflineWorkerSource;

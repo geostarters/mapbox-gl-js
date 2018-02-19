@@ -287,6 +287,8 @@ class ProgramConfiguration {
 
     static createDynamic<Layer: TypedStyleLayer>(layer: Layer, zoom: number, filterProperties: (string) => boolean) {
         const self = new ProgramConfiguration();
+        const keys = [];
+
         for (const property in layer.paint._values) {
             if (!filterProperties(property)) continue;
             const value = layer.paint.get(property);
@@ -299,43 +301,19 @@ class ProgramConfiguration {
 
             if (value.value.kind === 'constant') {
                 self.binders[property] = new ConstantBinder(value.value, name, type);
-                self.cacheKey += `/u_${name}`;
+                keys.push(`/u_${name}`);
             } else if (value.value.kind === 'source') {
                 self.binders[property] = new SourceExpressionBinder(value.value, name, type);
-                self.cacheKey += `/a_${name}`;
+                keys.push(`/a_${name}`);
             } else {
                 self.binders[property] = new CompositeExpressionBinder(value.value, name, type, useIntegerZoom, zoom);
-                self.cacheKey += `/z_${name}`;
+                keys.push(`/z_${name}`);
             }
         }
 
-        return self;
-    }
-
-    static forBackgroundColor(color: Color, opacity: number) {
-        const self = new ProgramConfiguration();
-
-        self.binders['background-color'] = new ConstantBinder(color, 'color', 'color');
-        self.cacheKey += `/u_color`;
-
-        self.binders['background-opacity'] = new ConstantBinder(opacity, 'opacity', 'number');
-        self.cacheKey += `/u_opacity`;
+        self.cacheKey = keys.sort().join('');
 
         return self;
-    }
-
-    static forBackgroundPattern(opacity: number) {
-        const self = new ProgramConfiguration();
-
-        self.binders['background-opacity'] = new ConstantBinder(opacity, 'opacity', 'number');
-        self.cacheKey += `/u_opacity`;
-
-        return self;
-    }
-
-    static forTileClippingMask() {
-        // The color and opacity values don't matter.
-        return ProgramConfiguration.forBackgroundColor(Color.black, 1);
     }
 
     populatePaintArrays(length: number, feature: Feature) {

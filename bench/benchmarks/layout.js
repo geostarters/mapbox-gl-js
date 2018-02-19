@@ -124,7 +124,8 @@ module.exports = class Layout extends Benchmark {
                     angle: 0,
                     pitch: 0,
                     cameraToCenterDistance: 0,
-                    cameraToTileDistance: 0
+                    cameraToTileDistance: 0,
+                    blob: null
                 });
 
                 const tile = new VT.VectorTile(new Protobuf(buffer));

@@ -26,8 +26,14 @@ function draw(painter: Painter, source: SourceCache, layer: FillExtrusionStyleLa
     if (painter.renderPass === 'offscreen') {
         drawToExtrusionFramebuffer(painter, layer);
 
-        for (let i = 0; i < coords.length; i++) {
-            drawExtrusion(painter, source, layer, coords[i]);
+        let first = true;
+        for (const coord of coords) {
+            const tile = source.getTile(coord);
+            const bucket: ?FillExtrusionBucket = (tile.getBucket(layer): any);
+            if (!bucket) continue;
+
+            drawExtrusion(painter, source, layer, tile, coord, bucket, first);
+            first = false;
         }
     } else if (painter.renderPass === 'translucent') {
         drawExtrusionTexture(painter, layer);
@@ -62,7 +68,7 @@ function drawToExtrusionFramebuffer(painter, layer) {
 
     context.clear({ color: Color.transparent });
 
-    context.setStencilMode(StencilMode.disabled());
+    context.setStencilMode(StencilMode.disabled);
     context.setDepthMode(new DepthMode(gl.LEQUAL, DepthMode.ReadWrite, [0, 1]));
     context.setColorMode(painter.colorModeForRenderPass());
 }
@@ -75,8 +81,8 @@ function drawExtrusionTexture(painter, layer) {
     const gl = context.gl;
     const program = painter.useProgram('extrusionTexture');
 
-    context.setStencilMode(StencilMode.disabled());
-    context.setDepthMode(DepthMode.disabled());
+    context.setStencilMode(StencilMode.disabled);
+    context.setDepthMode(DepthMode.disabled);
     context.setColorMode(painter.colorModeForRenderPass());
 
     context.activeTexture.set(gl.TEXTURE0);
@@ -95,20 +101,18 @@ function drawExtrusionTexture(painter, layer) {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 
-function drawExtrusion(painter, source, layer, coord, progress) {
-    const animProgress = progress || 1.0;
-    const tile = source.getTile(coord);
-    const bucket: ?FillExtrusionBucket = (tile.getBucket(layer): any);
-    if (!bucket) return;
-
+function drawExtrusion(painter, source, layer, tile, coord, bucket, first) {
     const context = painter.context;
     const gl = context.gl;
 
     const image = layer.paint.get('fill-extrusion-pattern');
 
+    const prevProgram = painter.context.program.get();
     const programConfiguration = bucket.programConfigurations.get(layer.id);
     const program = painter.useProgram(image ? 'fillExtrusionPattern' : 'fillExtrusion', programConfiguration);
-    programConfiguration.setUniforms(context, program, layer.paint, {zoom: painter.transform.zoom});
+    if (first || program.program !== prevProgram) {
+        programConfiguration.setUniforms(context, program, layer.paint, {zoom: painter.transform.zoom});
+    }
 
     if (image) {
         if (pattern.isPatternMissing(image, painter)) return;
@@ -123,9 +127,6 @@ function drawExtrusion(painter, source, layer, coord, progress) {
         layer.paint.get('fill-extrusion-translate'),
         layer.paint.get('fill-extrusion-translate-anchor')
     ));
-
-    gl.uniform1f(program.u_anim_t, animProgress);
-    gl.uniform1i(program.u_reversed, layer.paint['fill-extrusion-animation-reversed']);
 
     setLight(program, painter);
 
@@ -157,24 +158,4 @@ function setLight(program, painter) {
     gl.uniform3fv(program.uniforms.u_lightpos, lightPos);
     gl.uniform1f(program.uniforms.u_lightintensity, light.properties.get('intensity'));
     gl.uniform3f(program.uniforms.u_lightcolor, color.r, color.g, color.b);
-}
-
-function getAnimationValue(tile, layer, now) {
-    const animationDuration = layer.paint['fill-extrusion-duration'];
-    const animate = layer.paint['fill-extrusion-animate'];
-    var progress = 1.0;
-
-    if (animate && tile.sourceCache && animationDuration > 0) {
-
-        progress = (now - tile.timeAdded) / animationDuration;
-        progress = (progress > 1.0 ? 1.0 : easeOutQuart(progress));
-
-    }
-
-    return progress;
-
-}
-
-function easeOutQuart(t) {
-    return 1-(--t)*t*t*t;
 }

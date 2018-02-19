@@ -40,7 +40,9 @@ export interface Source {
      * implementation for this Source type by calling `self.registerWorkerSource(workerSource: WorkerSource)`.
      * @private
      */
-    static workerSourceURL?: URL;
+    // Static interface properties are not supported in flow as of 0.62.0.
+    // https://github.com/facebook/flow/issues/5590
+    // static workerSourceURL?: URL;
 
     +type: string;
     id: string;
@@ -78,10 +80,10 @@ export interface Source {
 
 const sourceTypes = {
     'vector': require('../source/vector_tile_source'),
-    'vectoroffline': require('../source/vector_tile_offline_source'),
+    'vector-offline': require('../source/vector_tile_offline_source'),
     'raster': require('../source/raster_tile_source'),
     'raster-dem': require('../source/raster_dem_tile_source'),
-    'rasteroffline': require('../source/raster_tile_offline_source'),
+    'raster-offline': require('../source/raster_tile_offline_source'),
     'geojson': require('../source/geojson_source'),
     'video': require('../source/video_source'),
     'image': require('../source/image_source'),

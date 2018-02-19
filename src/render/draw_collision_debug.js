@@ -16,8 +16,8 @@ function drawCollisionDebugGeometry(painter: Painter, sourceCache: SourceCache, 
     const gl = context.gl;
     const program = drawCircles ? painter.useProgram('collisionCircle') : painter.useProgram('collisionBox');
 
-    context.setDepthMode(DepthMode.disabled());
-    context.setStencilMode(StencilMode.disabled());
+    context.setDepthMode(DepthMode.disabled);
+    context.setStencilMode(StencilMode.disabled);
     context.setColorMode(painter.colorModeForRenderPass());
 
     for (let i = 0; i < coords.length; i++) {
@@ -42,6 +42,7 @@ function drawCollisionDebugGeometry(painter: Painter, sourceCache: SourceCache, 
         gl.uniform2f(program.uniforms.u_extrude_scale,
             painter.transform.pixelsToGLUnits[0] / (pixelRatio * scale),
             painter.transform.pixelsToGLUnits[1] / (pixelRatio * scale));
+        gl.uniform1f(program.uniforms.u_overscale_factor, tile.tileID.overscaleFactor());
 
         program.draw(
             context,

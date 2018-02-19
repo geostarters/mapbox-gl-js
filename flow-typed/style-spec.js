@@ -83,7 +83,7 @@ declare type VectorSourceSpecification = {
 }
 
 declare type RasterSourceSpecification = {
-    "type": "raster",
+    "type": "raster" | "raster-offline",
     "url"?: string,
     "tiles"?: Array<string>,
     "bounds"?: [number, number, number, number],
@@ -102,7 +102,8 @@ declare type RasterDEMSourceSpecification = {
     "minzoom"?: number,
     "maxzoom"?: number,
     "tileSize"?: number,
-    "attribution"?: string
+    "attribution"?: string,
+    "encoding"?: "terrarium" | "mapbox"
 }
 
 declare type GeojsonSourceSpecification = {|
@@ -188,7 +189,7 @@ declare type LineLayerSpecification = {|
         "line-color"?: DataDrivenPropertyValueSpecification<ColorSpecification>,
         "line-translate"?: PropertyValueSpecification<[number, number]>,
         "line-translate-anchor"?: PropertyValueSpecification<"map" | "viewport">,
-        "line-width"?: DataDrivenPropertyValueSpecification<number>,
+        "line-width"?: PropertyValueSpecification<number>,
         "line-gap-width"?: DataDrivenPropertyValueSpecification<number>,
         "line-offset"?: DataDrivenPropertyValueSpecification<number>,
         "line-blur"?: DataDrivenPropertyValueSpecification<number>,
@@ -303,7 +304,7 @@ declare type HeatmapLayerSpecification = {|
         "visibility"?: "visible" | "none"
     |},
     "paint"?: {|
-        "heatmap-radius"?: PropertyValueSpecification<number>,
+        "heatmap-radius"?: DataDrivenPropertyValueSpecification<number>,
         "heatmap-weight"?: DataDrivenPropertyValueSpecification<number>,
         "heatmap-intensity"?: PropertyValueSpecification<number>,
         "heatmap-color"?: ExpressionSpecification,
@@ -330,7 +331,10 @@ declare type FillExtrusionLayerSpecification = {|
         "fill-extrusion-translate-anchor"?: PropertyValueSpecification<"map" | "viewport">,
         "fill-extrusion-pattern"?: PropertyValueSpecification<string>,
         "fill-extrusion-height"?: DataDrivenPropertyValueSpecification<number>,
-        "fill-extrusion-base"?: DataDrivenPropertyValueSpecification<number>
+        "fill-extrusion-base"?: DataDrivenPropertyValueSpecification<number>,
+        "fill-extrusion-duration"?: PropertyValueSpecification<number>,
+        "fill-extrusion-animate"?: boolean,
+        "fill-extrusion-animation-reversed"?: boolean
     |}
 |}
 
