@@ -213,7 +213,7 @@ class VectorTileOfflineWorkerSource extends VectorTileWorkerSource {
         if (typeof blob === 'undefined') {
             callback(undefined,
                 {
-                    data: undefined,
+                    data: new ArrayBuffer(0),
                     cacheControl: null,
                     expires: null
                 });
@@ -226,6 +226,7 @@ class VectorTileOfflineWorkerSource extends VectorTileWorkerSource {
             for (let d = 0; a > d; ++d) {
                 s[d] = l.charCodeAt(d);
             }
+
             const n = Pako.inflate(s);
 
             callback(undefined,

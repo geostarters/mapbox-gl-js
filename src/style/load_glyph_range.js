@@ -16,23 +16,66 @@ module.exports = function (fontstack: string,
     const begin = range * 256;
     const end = begin + 255;
 
-    const request = requestTransform(
-        normalizeGlyphsURL(urlTemplate)
-            .replace('{fontstack}', fontstack)
-            .replace('{range}', `${begin}-${end}`),
-        ajax.ResourceType.Glyphs);
+    if(urlTemplate.indexOf("file://") === -1) {
 
-    ajax.getArrayBuffer(request, (err, response) => {
-        if (err) {
-            callback(err);
-        } else if (response) {
-            const glyphs = {};
+        const request = requestTransform(
+            normalizeGlyphsURL(urlTemplate)
+                .replace('{fontstack}', fontstack)
+                .replace('{range}', `${begin}-${end}`),
+            ajax.ResourceType.Glyphs);
 
-            for (const glyph of parseGlyphPBF(response.data)) {
-                glyphs[glyph.id] = glyph;
+        ajax.getArrayBuffer(request, (err, response) => {
+            if (err) {
+                callback(err);
+            } else if (response) {
+                const glyphs = {};
+
+                for (const glyph of parseGlyphPBF(response.data)) {
+                    glyphs[glyph.id] = glyph;
+                }
+
+                callback(null, glyphs);
             }
+        });
 
-            callback(null, glyphs);
+    } else {
+
+        if(window.resolveLocalFileSystemURL){
+
+            const url = urlTemplate.replace('{fontstack}', fontstack)
+                .replace('{range}', `${begin}-${end}`);
+
+            window.resolveLocalFileSystemURL(url, function(fileEntry) {
+
+                fileEntry.file(function(file) {
+                    var reader = new FileReader();
+
+                    reader.onloadend = function(e) {
+                        const glyphs = {};
+
+                        for (const glyph of parseGlyphPBF(reader.result)) {
+                            glyphs[glyph.id] = glyph;
+                        }
+        
+                        callback(null, glyphs);
+                    }
+
+                    reader.readAsArrayBuffer(file);
+                });
+
+            }, function(e) {
+
+                callback(e.code);
+
+            });
+
+        }else{
+
+            throw new Error('vector tile Offline sources need cordova-sqlite-ext extended -----> https://github.com/jessisena/cordova-sqlite-ext');
+
         }
-    });
+
+    }
+
+
 };
